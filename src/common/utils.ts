@@ -1,5 +1,6 @@
+import fetch, { Response } from 'node-fetch';
 import { getUserAgent } from "universal-user-agent";
-import { createGitHubError, GitHubTimeoutError, GitHubNetworkError, GitHubError, createEnhancedGitHubError } from "./errors.js";
+import { GitHubError, GitHubNetworkError, GitHubTimeoutError, createEnhancedGitHubError, createGitHubError } from "./errors.js";
 import { VERSION } from "./version.js";
 
 type RequestOptions = {
@@ -57,7 +58,7 @@ export async function githubRequest(
     requestCount = 0;
     requestCountResetTime = Date.now() + 60000;
   }
-  
+
   if (requestCount >= MAX_REQUESTS_PER_MINUTE) {
     const waitTime = requestCountResetTime - Date.now();
     throw new Error(`Rate limit exceeded. Please try again in ${Math.ceil(waitTime / 1000)} seconds.`);
@@ -104,9 +105,9 @@ export async function githubRequest(
     if ((error as Error).name === 'AbortError') {
       throw new GitHubTimeoutError(`Request timeout after ${timeout}ms`, timeout);
     }
-    if ((error as { cause?: { code: string } }).cause?.code === 'ENOTFOUND' || 
-        (error as { cause?: { code: string } }).cause?.code === 'ECONNREFUSED') {
-      throw new GitHubNetworkError(`Unable to connect to GitHub API`, 
+    if ((error as { cause?: { code: string } }).cause?.code === 'ENOTFOUND' ||
+      (error as { cause?: { code: string } }).cause?.code === 'ECONNREFUSED') {
+      throw new GitHubNetworkError(`Unable to connect to GitHub API`,
         (error as { cause?: { code: string } }).cause!.code);
     }
     if (!(error instanceof GitHubError)) {

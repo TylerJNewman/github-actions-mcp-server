@@ -8,20 +8,20 @@ import {
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import * as actions from './operations/actions.js';
 import {
-  GitHubError,
-  GitHubValidationError,
-  GitHubResourceNotFoundError,
   GitHubAuthenticationError,
+  GitHubConflictError,
+  GitHubError,
+  GitHubNetworkError,
   GitHubPermissionError,
   GitHubRateLimitError,
-  GitHubConflictError,
+  GitHubResourceNotFoundError,
   GitHubTimeoutError,
-  GitHubNetworkError,
+  GitHubValidationError,
   isGitHubError,
 } from './common/errors.js';
 import { VERSION } from "./common/version.js";
+import * as actions from './operations/actions.js';
 
 const server = new Server(
   {
@@ -37,7 +37,7 @@ const server = new Server(
 
 function formatGitHubError(error: GitHubError): string {
   let message = `GitHub API Error: ${error.message}`;
-  
+
   if (error instanceof GitHubValidationError) {
     message = `Validation Error: ${error.message}`;
     if (error.response) {
@@ -110,6 +110,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description: "Re-run a workflow run",
         inputSchema: zodToJsonSchema(actions.RerunWorkflowSchema),
       },
+      {
+        name: "get_workflow_job_logs",
+        description: "Get job logs for a specific workflow job",
+        inputSchema: zodToJsonSchema(actions.GetWorkflowJobLogsSchema),
+      },
     ],
   };
 });
@@ -133,7 +138,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "get_workflow": {
         const args = actions.GetWorkflowSchema.parse(request.params.arguments);
         const result = await actions.getWorkflow(
@@ -145,7 +150,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "get_workflow_usage": {
         const args = actions.GetWorkflowUsageSchema.parse(request.params.arguments);
         const result = await actions.getWorkflowUsage(
@@ -157,7 +162,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "list_workflow_runs": {
         const args = actions.ListWorkflowRunsSchema.parse(request.params.arguments);
         const { owner, repo, workflowId, ...options } = args;
@@ -169,7 +174,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "get_workflow_run": {
         const args = actions.GetWorkflowRunSchema.parse(request.params.arguments);
         const result = await actions.getWorkflowRun(
@@ -181,7 +186,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "get_workflow_run_jobs": {
         const args = actions.GetWorkflowRunJobsSchema.parse(request.params.arguments);
         const { owner, repo, runId, filter, page, perPage } = args;
@@ -197,7 +202,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "trigger_workflow": {
         const args = actions.TriggerWorkflowSchema.parse(request.params.arguments);
         const { owner, repo, workflowId, ref, inputs } = args;
@@ -212,7 +217,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "cancel_workflow_run": {
         const args = actions.CancelWorkflowRunSchema.parse(request.params.arguments);
         const result = await actions.cancelWorkflowRun(
@@ -224,7 +229,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       }
-      
+
       case "rerun_workflow": {
         const args = actions.RerunWorkflowSchema.parse(request.params.arguments);
         const result = await actions.rerunWorkflowRun(
@@ -234,6 +239,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      }
+
+      case "get_workflow_job_logs": {
+        const args = actions.GetWorkflowJobLogsSchema.parse(request.params.arguments);
+        const result = await actions.getWorkflowJobLogs(
+          args.owner,
+          args.repo,
+          args.jobId
+        );
+        return {
+          content: [{ type: "text", text: result }],
         };
       }
 

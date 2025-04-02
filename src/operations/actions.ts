@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { githubRequest, buildUrl, validateOwnerName, validateRepositoryName } from "../common/utils.js";
 import {
-  WorkflowRunsSchema,
-  WorkflowRunSchema,
   JobsSchema,
-  WorkflowsSchema,
+  WorkflowRunSchema,
+  WorkflowRunsSchema,
   WorkflowSchema,
-  WorkflowUsageSchema
+  WorkflowUsageSchema,
+  WorkflowsSchema
 } from "../common/types.js";
+import { buildUrl, githubRequest, validateOwnerName, validateRepositoryName } from "../common/utils.js";
 
 /**
  * Schema definitions
@@ -59,9 +59,16 @@ export const GetWorkflowRunJobsSchema = z.object({
   owner: z.string().describe("Repository owner (username or organization)"),
   repo: z.string().describe("Repository name"),
   runId: z.number().describe("The ID of the workflow run"),
-  filter: z.enum(['latest', 'all']).optional().describe("Filter jobs by their completed_at date"),
+  filter: z.enum(['latest', 'all']).optional().describe("Filter jobs by completion status"),
   page: z.number().optional().describe("Page number for pagination"),
   perPage: z.number().optional().describe("Results per page (max 100)"),
+});
+
+// Get workflow job logs schema
+export const GetWorkflowJobLogsSchema = z.object({
+  owner: z.string().describe("Repository owner (username or organization)"),
+  repo: z.string().describe("Repository name"),
+  jobId: z.number().describe("The ID of the workflow job"),
 });
 
 // Trigger workflow schema
@@ -89,9 +96,9 @@ export const RerunWorkflowSchema = CancelWorkflowRunSchema;
 
 // List workflows in a repository
 export async function listWorkflows(
-  owner: string, 
-  repo: string, 
-  page?: number, 
+  owner: string,
+  repo: string,
+  page?: number,
   perPage?: number
 ) {
   owner = validateOwnerName(owner);
@@ -108,8 +115,8 @@ export async function listWorkflows(
 
 // Get a workflow
 export async function getWorkflow(
-  owner: string, 
-  repo: string, 
+  owner: string,
+  repo: string,
   workflowId: string | number
 ) {
   owner = validateOwnerName(owner);
@@ -122,8 +129,8 @@ export async function getWorkflow(
 
 // Get workflow usage
 export async function getWorkflowUsage(
-  owner: string, 
-  repo: string, 
+  owner: string,
+  repo: string,
   workflowId: string | number
 ) {
   owner = validateOwnerName(owner);
@@ -136,8 +143,8 @@ export async function getWorkflowUsage(
 
 // List workflow runs
 export async function listWorkflowRuns(
-  owner: string, 
-  repo: string, 
+  owner: string,
+  repo: string,
   options: {
     workflowId?: string | number,
     actor?: string,
@@ -179,8 +186,8 @@ export async function listWorkflowRuns(
 
 // Get a workflow run
 export async function getWorkflowRun(
-  owner: string, 
-  repo: string, 
+  owner: string,
+  repo: string,
   runId: number
 ) {
   owner = validateOwnerName(owner);
@@ -193,11 +200,11 @@ export async function getWorkflowRun(
 
 // Get workflow run jobs
 export async function getWorkflowRunJobs(
-  owner: string, 
-  repo: string, 
-  runId: number, 
-  filter?: 'latest' | 'all', 
-  page?: number, 
+  owner: string,
+  repo: string,
+  runId: number,
+  filter?: 'latest' | 'all',
+  page?: number,
   perPage?: number
 ) {
   owner = validateOwnerName(owner);
@@ -213,24 +220,43 @@ export async function getWorkflowRunJobs(
   return JobsSchema.parse(response);
 }
 
+// Get workflow job logs
+export async function getWorkflowJobLogs(
+  owner: string,
+  repo: string,
+  jobId: number
+) {
+  owner = validateOwnerName(owner);
+  repo = validateRepositoryName(repo);
+
+  const url = `https://api.github.com/repos/${owner}/${repo}/actions/jobs/${jobId}/logs`;
+  const response = await githubRequest(url, {
+    headers: {
+      Accept: "application/vnd.github.v3.raw"
+    }
+  });
+
+  return response as string;
+}
+
 // Trigger a workflow run
 export async function triggerWorkflow(
-  owner: string, 
-  repo: string, 
-  workflowId: string | number, 
-  ref: string, 
+  owner: string,
+  repo: string,
+  workflowId: string | number,
+  ref: string,
   inputs?: Record<string, string>
 ) {
   owner = validateOwnerName(owner);
   repo = validateRepositoryName(repo);
 
   const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`;
-  
+
   const body: {
     ref: string;
     inputs?: Record<string, string>;
   } = { ref };
-  
+
   if (inputs && Object.keys(inputs).length > 0) {
     body.inputs = inputs;
   }
@@ -246,8 +272,8 @@ export async function triggerWorkflow(
 
 // Cancel a workflow run
 export async function cancelWorkflowRun(
-  owner: string, 
-  repo: string, 
+  owner: string,
+  repo: string,
   runId: number
 ) {
   owner = validateOwnerName(owner);
@@ -262,8 +288,8 @@ export async function cancelWorkflowRun(
 
 // Rerun a workflow run
 export async function rerunWorkflowRun(
-  owner: string, 
-  repo: string, 
+  owner: string,
+  repo: string,
   runId: number
 ) {
   owner = validateOwnerName(owner);
